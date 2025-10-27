@@ -29,6 +29,11 @@ import android.view.MenuItem
 import androidx.core.view.MenuHost
 import androidx.core.view.MenuProvider
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.LinearLayoutManager
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 class FileExplorerFragment : Fragment() {
 
@@ -37,6 +42,7 @@ class FileExplorerFragment : Fragment() {
 
     private val viewModel: FileViewModel by viewModels()
     private lateinit var adapter: FileAdapter
+    private lateinit var settingsManager: SettingsManager
 
     // Mantenemos el launcher de permisos igual
     private val storagePermissionLauncher = registerForActivityResult(
@@ -62,6 +68,7 @@ class FileExplorerFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        settingsManager = SettingsManager(requireContext())
         setupRecyclerView()
         observeViewModel()
         setupBackButtonHandler()
@@ -86,21 +93,50 @@ class FileExplorerFragment : Fragment() {
         val menuHost: MenuHost = requireActivity()
         menuHost.addMenuProvider(object : MenuProvider {
             override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
-                // Inflamos nuestro menú
                 menuInflater.inflate(R.menu.main_menu, menu)
+
+                // Leemos el modo de vista actual para poner el icono correcto
+                val viewModeItem = menu.findItem(R.id.action_toggle_view)
+                lifecycleScope.launch {
+                    val currentMode = settingsManager.viewModeFlow.first()
+                    if (currentMode == SettingsManager.VIEW_MODE_GRID) {
+                        viewModeItem.icon = resources.getDrawable(R.drawable.ic_view_list, null)
+                    } else {
+                        viewModeItem.icon = resources.getDrawable(R.drawable.ic_view_grid, null)
+                    }
+                }
             }
 
             override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
-                // Manejamos el clic en el ícono de configuración
                 return when (menuItem.itemId) {
                     R.id.action_settings -> {
                         findNavController().navigate(R.id.action_fileExplorerFragment_to_settingsFragment)
+                        true
+                    }
+                    // AÑADE ESTE CASO
+                    R.id.action_toggle_view -> {
+                        toggleViewMode()
                         true
                     }
                     else -> false
                 }
             }
         }, viewLifecycleOwner, Lifecycle.State.RESUMED)
+    }
+    private fun toggleViewMode() {
+        lifecycleScope.launch {
+            // Leemos el modo actual, lo invertimos y lo guardamos
+            val currentMode = settingsManager.viewModeFlow.first()
+            val newMode = if (currentMode == SettingsManager.VIEW_MODE_LIST) {
+                SettingsManager.VIEW_MODE_GRID
+            } else {
+                SettingsManager.VIEW_MODE_LIST
+            }
+            settingsManager.setViewMode(newMode)
+
+            // Actualizamos la UI
+            updateLayoutManager(newMode)
+        }
     }
     private fun setupResultListener() {
         // Nos ponemos a escuchar los resultados del BottomSheet
@@ -210,11 +246,33 @@ class FileExplorerFragment : Fragment() {
     // --- EL RESTO DE FUNCIONES SE MANTIENEN IGUAL ---
     // 3. Modifica la creación del adaptador
     private fun setupRecyclerView() {
+        // Creamos el adaptador
         adapter = FileAdapter(
             onFileClicked = { file -> onFileClicked(file) },
             onFileLongClicked = { file -> onFileLongClicked(file) }
         )
         binding.recyclerViewFiles.adapter = adapter
+
+        // Leemos el modo de vista guardado y configuramos el layout
+        lifecycleScope.launch {
+            val currentMode = settingsManager.viewModeFlow.first()
+            updateLayoutManager(currentMode)
+        }
+    }
+    private fun updateLayoutManager(newMode: String) {
+        // Actualizamos el adaptador
+        adapter.setViewMode(newMode)
+
+        // Cambiamos el LayoutManager
+        if (newMode == SettingsManager.VIEW_MODE_GRID) {
+            // Usamos 3 columnas para la cuadrícula
+            binding.recyclerViewFiles.layoutManager = GridLayoutManager(requireContext(), 3)
+        } else {
+            binding.recyclerViewFiles.layoutManager = LinearLayoutManager(requireContext())
+        }
+
+        // Invalidamos el menú para que el icono se actualice
+        requireActivity().invalidateMenu()
     }
 
     // 4. Añade la función que maneja el toque largo
