@@ -45,6 +45,22 @@ class FileOptionsBottomSheet : BottomSheetDialogFragment() {
             ))
             dismiss() // Cerramos el menú
         }
+
+        binding.optionCopy.setOnClickListener {
+            setFragmentResult(REQUEST_KEY, bundleOf(
+                ACTION_KEY to ACTION_COPY,
+                PATH_KEY to filePath
+            ))
+            dismiss()
+        }
+
+        binding.optionMove.setOnClickListener {
+            setFragmentResult(REQUEST_KEY, bundleOf(
+                ACTION_KEY to ACTION_MOVE,
+                PATH_KEY to filePath
+            ))
+            dismiss()
+        }
     }
 
     override fun onDestroyView() {
@@ -59,6 +75,8 @@ class FileOptionsBottomSheet : BottomSheetDialogFragment() {
         const val PATH_KEY = "path"
         const val ACTION_RENAME = "rename"
         const val ACTION_DELETE = "delete"
+        const val ACTION_COPY = "copy"
+        const val ACTION_MOVE = "move"
 
         private const val ARG_FILE_PATH = "file_path"
 

@@ -1,12 +1,12 @@
-package com.example.practica3 // Tu nombre de paquete
+package com.example.practica3
 
-import android.app.AlertDialog // <-- AÑADIR IMPORTACIÓN
+import android.app.AlertDialog
 import android.os.Bundle
 import android.os.Environment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.EditText // <-- AÑADIR IMPORTACIÓN
+import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
@@ -22,9 +22,9 @@ import android.provider.Settings
 import androidx.core.content.FileProvider
 import androidx.navigation.fragment.findNavController
 import androidx.fragment.app.setFragmentResultListener
+import androidx.constraintlayout.widget.ConstraintSet
 
-// 1. Añade la interfaz "FileOptionsListener" aquí
-class FileExplorerFragment : Fragment() { // <-- MODIFICAR ESTA LÍNEA
+class FileExplorerFragment : Fragment() {
 
     private var _binding: FragmentFileExplorerBinding? = null
     private val binding get() = _binding!!
@@ -68,6 +68,12 @@ class FileExplorerFragment : Fragment() { // <-- MODIFICAR ESTA LÍNEA
         binding.fabAddFolder.setOnClickListener {
             showInputFolderNameDialog()
         }
+        binding.btnPaste.setOnClickListener {
+            viewModel.pasteClipboard()
+        }
+        binding.btnCancelPaste.setOnClickListener {
+            viewModel.clearClipboard()
+        }
     }
     private fun setupResultListener() {
         // Nos ponemos a escuchar los resultados del BottomSheet
@@ -84,6 +90,12 @@ class FileExplorerFragment : Fragment() { // <-- MODIFICAR ESTA LÍNEA
                 FileOptionsBottomSheet.ACTION_DELETE -> {
                     // Llamamos a la función que muestra la confirmación
                     showDeleteConfirmationDialog(path)
+                }
+                FileOptionsBottomSheet.ACTION_COPY -> {
+                    viewModel.setClipboard(File(path), ClipboardOperation.COPY)
+                }
+                FileOptionsBottomSheet.ACTION_MOVE -> {
+                    viewModel.setClipboard(File(path), ClipboardOperation.MOVE)
                 }
             }
         }
@@ -108,8 +120,41 @@ class FileExplorerFragment : Fragment() { // <-- MODIFICAR ESTA LÍNEA
         viewModel.error.observe(viewLifecycleOwner) { errorMsg ->
             Toast.makeText(requireContext(), errorMsg, Toast.LENGTH_SHORT).show()
         }
+        viewModel.clipboard.observe(viewLifecycleOwner) { clipboardAction ->
+            if (clipboardAction == null) {
+                // No hay nada en el portapapeles, ocultamos la barra
+                binding.pasteBar.visibility = View.GONE
+                updateConstraints(isPasting = false)
+            } else {
+                // Hay algo, mostramos la barra y la configuramos
+                val operationText = if (clipboardAction.operation == ClipboardOperation.COPY) "Copiando" else "Moviendo"
+                binding.pasteFileName.text = "$operationText: ${clipboardAction.file.name}"
+                binding.pasteBar.visibility = View.VISIBLE
+                updateConstraints(isPasting = true)
+            }
+        }
     }
+    // Esta función ajusta las restricciones del RecyclerView y el FAB
+    // para que se coloquen encima de la barra de pegar cuando aparece.
+    private fun updateConstraints(isPasting: Boolean) {
+        val constraintSet = ConstraintSet()
+        constraintSet.clone(binding.root) // Clona el ConstraintLayout
 
+        val pasteBarId = binding.pasteBar.id
+
+        if (isPasting) {
+            // Si pegamos: El RecyclerView y el FAB se anclan a la parte SUPERIOR de la barra
+            constraintSet.connect(binding.recyclerViewFiles.id, ConstraintSet.BOTTOM, pasteBarId, ConstraintSet.TOP)
+            constraintSet.connect(binding.fabAddFolder.id, ConstraintSet.BOTTOM, pasteBarId, ConstraintSet.TOP, 16)
+        } else {
+            // Si no pegamos: El RecyclerView y el FAB se anclan a la parte INFERIOR del padre
+            constraintSet.connect(binding.recyclerViewFiles.id, ConstraintSet.BOTTOM, ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM)
+            constraintSet.connect(binding.fabAddFolder.id, ConstraintSet.BOTTOM, ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM, 16)
+        }
+
+        // Aplica los cambios de restricciones
+        constraintSet.applyTo(binding.root)
+    }
     private fun setupBackButtonHandler() {
         val callback = object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -188,7 +233,7 @@ class FileExplorerFragment : Fragment() { // <-- MODIFICAR ESTA LÍNEA
             .setNegativeButton("Cancelar", null)
             .show()
     }
-    
+
     private fun showDeleteConfirmationDialog(filePath: String) {
         AlertDialog.Builder(requireContext())
             .setTitle("Confirmar Eliminación")

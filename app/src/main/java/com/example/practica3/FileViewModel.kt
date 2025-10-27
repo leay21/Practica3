@@ -9,6 +9,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
+enum class ClipboardOperation {
+    COPY, MOVE
+}
+
+data class ClipboardAction(
+    val file: File,
+    val operation: ClipboardOperation
+)
 class FileViewModel : ViewModel() {
 
     private val _files = MutableLiveData<List<File>>()
@@ -19,7 +27,8 @@ class FileViewModel : ViewModel() {
 
     private val _error = MutableLiveData<String>()
     val error: LiveData<String> = _error
-
+    private val _clipboard = MutableLiveData<ClipboardAction?>(null)
+    val clipboard: LiveData<ClipboardAction?> = _clipboard
     fun loadFiles(path: String) {
         viewModelScope.launch {
             try {
@@ -91,6 +100,54 @@ class FileViewModel : ViewModel() {
             } catch (e: Exception) {
                 _error.postValue("Error al eliminar: ${e.message}")
             }
+        }
+    }
+    fun setClipboard(file: File, operation: ClipboardOperation) {
+        _clipboard.value = ClipboardAction(file, operation)
+    }
+
+    fun clearClipboard() {
+        _clipboard.value = null
+    }
+
+    fun pasteClipboard() {
+        val action = _clipboard.value ?: return
+        val destinationDir = File(currentPath.value ?: return)
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                when (action.operation) {
+                    ClipboardOperation.COPY -> {
+                        copyFileOrDirectory(action.file, destinationDir)
+                    }
+                    ClipboardOperation.MOVE -> {
+                        moveFileOrDirectory(action.file, destinationDir)
+                    }
+                }
+                // Limpiamos el portapapeles y recargamos
+                _clipboard.postValue(null)
+                loadFiles(destinationDir.absolutePath)
+            } catch (e: Exception) {
+                _error.postValue("Error al pegar: ${e.message}")
+            }
+        }
+    }
+    private fun copyFileOrDirectory(source: File, destinationDir: File) {
+        val newFile = File(destinationDir, source.name)
+        if (source.isDirectory) {
+            source.copyRecursively(newFile, overwrite = true)
+        } else {
+            source.copyTo(newFile, overwrite = true)
+        }
+    }
+
+    private fun moveFileOrDirectory(source: File, destinationDir: File) {
+        val newFile = File(destinationDir, source.name)
+        // renameTo es la forma atómica de "mover"
+        if (!source.renameTo(newFile)) {
+            // Si renameTo falla (ej. entre diferentes discos), recurrimos a copiar y borrar
+            copyFileOrDirectory(source, destinationDir)
+            if (source.isDirectory) source.deleteRecursively() else source.delete()
         }
     }
 }
