@@ -36,7 +36,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class FileExplorerFragment : Fragment() {
-
+    private lateinit var breadcrumbAdapter: BreadcrumbAdapter
     private var _binding: FragmentFileExplorerBinding? = null
     private val binding get() = _binding!!
 
@@ -69,6 +69,7 @@ class FileExplorerFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         settingsManager = SettingsManager(requireContext())
+        setupBreadcrumbs()
         setupRecyclerView()
         observeViewModel()
         setupBackButtonHandler()
@@ -88,6 +89,16 @@ class FileExplorerFragment : Fragment() {
         binding.btnCancelPaste.setOnClickListener {
             viewModel.clearClipboard()
         }
+    }
+    private fun setupBreadcrumbs() {
+        breadcrumbAdapter = BreadcrumbAdapter { file ->
+            // Cuando se hace clic en un breadcrumb, navegamos a esa carpeta
+            viewModel.loadFiles(file.absolutePath)
+        }
+        // Configura el RecyclerView como horizontal
+        binding.recyclerBreadcrumbs.layoutManager =
+            LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+        binding.recyclerBreadcrumbs.adapter = breadcrumbAdapter
     }
     private fun setupMenu() {
         val menuHost: MenuHost = requireActivity()
@@ -168,7 +179,6 @@ class FileExplorerFragment : Fragment() {
     private fun observeViewModel() {
         // Este observador SÓLO actualiza el texto de la ruta y la flecha de atrás
         viewModel.currentPath.observe(viewLifecycleOwner) { path ->
-            binding.textCurrentPath.text = path
             val rootPath = Environment.getExternalStorageDirectory().absolutePath
             val isNotInRoot = path != null && path != rootPath
             (activity as AppCompatActivity).supportActionBar?.setDisplayHomeAsUpEnabled(isNotInRoot)
@@ -178,6 +188,14 @@ class FileExplorerFragment : Fragment() {
         viewModel.files.observe(viewLifecycleOwner) { files ->
             binding.textEmpty.isVisible = files.isEmpty()
             adapter.submitList(files)
+        }
+
+        viewModel.breadcrumbParts.observe(viewLifecycleOwner) { parts ->
+            if (parts != null) {
+                breadcrumbAdapter.setPath(parts)
+                // Hacemos scroll automático hasta el final de la lista de breadcrumbs
+                binding.recyclerBreadcrumbs.scrollToPosition(parts.size - 1)
+            }
         }
 
         viewModel.error.observe(viewLifecycleOwner) { errorMsg ->
@@ -266,7 +284,10 @@ class FileExplorerFragment : Fragment() {
         // Cambiamos el LayoutManager
         if (newMode == SettingsManager.VIEW_MODE_GRID) {
             // Usamos 3 columnas para la cuadrícula
-            binding.recyclerViewFiles.layoutManager = GridLayoutManager(requireContext(), 3)
+            //binding.recyclerViewFiles.layoutManager = GridLayoutManager(requireContext(), 3)
+            // Leemos el número de columnas desde nuestros archivos de recursos
+            val spanCount = requireContext().resources.getInteger(R.integer.grid_column_count)
+            binding.recyclerViewFiles.layoutManager = GridLayoutManager(requireContext(), spanCount)
         } else {
             binding.recyclerViewFiles.layoutManager = LinearLayoutManager(requireContext())
         }

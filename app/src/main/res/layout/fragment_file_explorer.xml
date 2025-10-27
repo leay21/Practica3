@@ -7,18 +7,20 @@
     android:layout_height="match_parent"
     tools:context=".FileExplorerFragment">
 
-    <TextView
-        android:id="@+id/textCurrentPath"
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recycler_breadcrumbs"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:padding="12dp"
+        android:orientation="horizontal"
         android:background="?attr/colorSurfaceContainer"
-        android:text="/storage/emulated/0"
-        android:maxLines="1"
-        android:ellipsize="start"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:clipToPadding="false"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent"
+        tools:listitem="@layout/item_breadcrumb" />
 
     <TextView
         android:id="@+id/textEmpty"
@@ -37,8 +39,7 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-        app:layout_constraintTop_toBottomOf="@id/textCurrentPath"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/recycler_breadcrumbs" app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         tools:listitem="@layout/item_file" />

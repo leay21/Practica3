@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import android.os.Environment
 
 enum class ClipboardOperation {
     COPY, MOVE
@@ -18,7 +19,8 @@ data class ClipboardAction(
     val operation: ClipboardOperation
 )
 class FileViewModel : ViewModel() {
-
+    private val _breadcrumbParts = MutableLiveData<List<File>>()
+    val breadcrumbParts: LiveData<List<File>> = _breadcrumbParts
     private val _files = MutableLiveData<List<File>>()
     val files: LiveData<List<File>> = _files
 
@@ -44,6 +46,19 @@ class FileViewModel : ViewModel() {
                 if (fileList != null) {
                     _files.value = fileList
                     _currentPath.value = path
+
+                    // Genera la lista de breadcrumbs
+                    val parts = mutableListOf<File>()
+                    var currentFile = File(path)
+                    val rootPath = Environment.getExternalStorageDirectory().absolutePath
+
+                    // Sube por el árbol de directorios hasta llegar a la raíz
+                    while (currentFile.absolutePath != rootPath && currentFile.parentFile != null) {
+                        parts.add(currentFile)
+                        currentFile = currentFile.parentFile
+                    }
+                    parts.add(File(rootPath)) // Añade la raíz ("Almacenamiento")
+                    _breadcrumbParts.value = parts.reversed() // Le damos la vuelta para el orden correcto
                 } else {
                     _error.value = "No se pudo acceder a la ruta."
                 }
