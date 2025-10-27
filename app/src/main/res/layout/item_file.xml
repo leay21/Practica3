@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:padding="12dp"
-    android:background="?android:attr/selectableItemBackground">
+    android:padding="16dp"
+    android:background="?attr/selectableItemBackground">
 
     <ImageView
-        android:id="@+id/iv_icon"
+        android:id="@+id/iconFile"
         android:layout_width="40dp"
         android:layout_height="40dp"
-        android:src="@drawable/outline_article_24"
-        tools:ignore="ContentDescription" />
+        tools:src="@drawable/baseline_archive_24" />
 
     <LinearLayout
         android:layout_width="0dp"
@@ -23,19 +23,19 @@
         android:layout_marginStart="16dp">
 
         <TextView
-            android:id="@+id/tv_file_name"
-            android:layout_width="match_parent"
+            android:id="@+id/textFileName"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textSize="16sp"
-            android:textStyle="bold"
-            tools:text="Nombre del Archivo.txt" />
+            android:maxLines="1"
+            android:ellipsize="end"
+            tools:text="Nombre del Archivo muy muy largo.txt" />
 
         <TextView
-            android:id="@+id/tv_file_details"
-            android:layout_width="match_parent"
+            android:id="@+id/textFileDetails"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textSize="12sp"
-            tools:text="1.5 MB - 05/10/2025" />
+            tools:text="4 elementos | 14 oct 2025" />
     </LinearLayout>
-
 </LinearLayout>
