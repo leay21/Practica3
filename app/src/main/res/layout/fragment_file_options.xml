@@ -29,5 +29,10 @@
         style="@style/FileOptionItem"
         android:text="Eliminar"
         app:drawableStartCompat="@drawable/ic_delete" />
+    <TextView
+        android:id="@+id/option_favorite"
+        style="@style/FileOptionItem"
+        android:text="Añadir a Favoritos"
+        app:drawableStartCompat="@drawable/ic_favorite_border" />
 
 </LinearLayout>

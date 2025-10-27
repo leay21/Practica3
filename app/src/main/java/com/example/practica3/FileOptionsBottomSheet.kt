@@ -61,6 +61,13 @@ class FileOptionsBottomSheet : BottomSheetDialogFragment() {
             ))
             dismiss()
         }
+        binding.optionFavorite.setOnClickListener {
+            setFragmentResult(REQUEST_KEY, bundleOf(
+                ACTION_KEY to ACTION_FAVORITE, // Nueva acción
+                PATH_KEY to filePath
+            ))
+            dismiss()
+        }
     }
 
     override fun onDestroyView() {
@@ -77,6 +84,7 @@ class FileOptionsBottomSheet : BottomSheetDialogFragment() {
         const val ACTION_DELETE = "delete"
         const val ACTION_COPY = "copy"
         const val ACTION_MOVE = "move"
+        const val ACTION_FAVORITE = "favorite"
 
         private const val ARG_FILE_PATH = "file_path"
 

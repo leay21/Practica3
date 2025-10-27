@@ -2,13 +2,16 @@ package com.example.practica3
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
+//import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import android.os.Environment
+import android.app.Application // <-- AÑADE ESTE
+import androidx.lifecycle.AndroidViewModel // <-- CAMBIA ViewModel por AndroidViewModel
+import kotlinx.coroutines.flow.Flow // <-- AÑADE SI NO ESTÁ
 
 enum class ClipboardOperation {
     COPY, MOVE
@@ -18,7 +21,7 @@ data class ClipboardAction(
     val file: File,
     val operation: ClipboardOperation
 )
-class FileViewModel : ViewModel() {
+class FileViewModel(application: Application) : AndroidViewModel(application) {
     private val _breadcrumbParts = MutableLiveData<List<File>>()
     val breadcrumbParts: LiveData<List<File>> = _breadcrumbParts
     private val _files = MutableLiveData<List<File>>()
@@ -31,6 +34,42 @@ class FileViewModel : ViewModel() {
     val error: LiveData<String> = _error
     private val _clipboard = MutableLiveData<ClipboardAction?>(null)
     val clipboard: LiveData<ClipboardAction?> = _clipboard
+    private val favoriteDao = AppDatabase.getDatabase(application).favoriteDao()
+    private val recentFileDao = AppDatabase.getDatabase(application).recentFileDao()
+
+    val allFavorites: Flow<List<FavoriteFile>> = favoriteDao.getAllFavorites()
+    val recentFiles: Flow<List<RecentFile>> = recentFileDao.getRecentFiles()
+
+    // Añade un archivo al historial
+    fun addRecentFile(file: File) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val recent = RecentFile(path = file.absolutePath, name = file.name)
+            recentFileDao.insert(recent)
+        }
+    }
+
+    // Añade o quita un archivo de favoritos
+    fun toggleFavorite(file: File) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val path = file.absolutePath
+            if (favoriteDao.isFavorite(path)) {
+                // Si ya es favorito, lo eliminamos
+                favoriteDao.delete(FavoriteFile(path = path, name = file.name))
+                // (Podrías enviar un evento a la UI para mostrar un Toast "Eliminado de favoritos")
+            } else {
+                // Si no es favorito, lo añadimos
+                favoriteDao.insert(FavoriteFile(path = path, name = file.name))
+                // (Podrías enviar un evento a la UI para mostrar un Toast "Añadido a favoritos")
+            }
+        }
+    }
+
+    // Función para saber si un archivo es favorito (útil para la UI)
+    // No es 'suspend' porque queremos observarlo como LiveData o StateFlow en el futuro
+    // Por ahora, lo dejamos así para usarlo directamente si es necesario.
+    // suspend fun isFavorite(path: String): Boolean {
+    //     return favoriteDao.isFavorite(path)
+    // }
     fun loadFiles(path: String) {
         viewModelScope.launch {
             try {

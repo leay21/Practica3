@@ -171,6 +171,12 @@ class FileExplorerFragment : Fragment() {
                 FileOptionsBottomSheet.ACTION_MOVE -> {
                     viewModel.setClipboard(File(path), ClipboardOperation.MOVE)
                 }
+                FileOptionsBottomSheet.ACTION_FAVORITE -> {
+                    viewModel.toggleFavorite(File(path))
+                    // Opcional: Mostrar un Toast confirmando la acción
+                    // Puedes obtener si se añadió o quitó observando un Flow/LiveData
+                    // que el ViewModel podría exponer basado en el resultado de isFavorite().
+                }
             }
         }
     }
@@ -378,6 +384,8 @@ class FileExplorerFragment : Fragment() {
         }
         val textExtensions = listOf("txt", "md", "log", "json", "xml", "html", "js", "css")
         val imageExtensions = listOf("jpg", "jpeg", "png", "gif", "bmp", "webp")
+        // Registramos el archivo abierto en el historial
+        viewModel.addRecentFile(file)
         when (file.extension.lowercase()) {
             in textExtensions -> {
                 val action = FileExplorerFragmentDirections.actionFileExplorerFragmentToTextVisualizerFragment(file.absolutePath)
