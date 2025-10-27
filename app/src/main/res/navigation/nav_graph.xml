@@ -14,11 +14,13 @@
         <action
             android:id="@+id/action_fileExplorerFragment_to_textVisualizerFragment"
             app:destination="@id/textVisualizerFragment" />
-
         <action
             android:id="@+id/action_fileExplorerFragment_to_imageVisualizerFragment"
             app:destination="@id/imageVisualizerFragment" />
 
+        <action
+            android:id="@+id/action_fileExplorerFragment_to_settingsFragment"
+            app:destination="@id/settingsFragment" />
     </fragment>
 
     <fragment
@@ -40,5 +42,11 @@
             android:name="filePath"
             app:argType="string" />
     </fragment>
+
+    <fragment
+        android:id="@+id/settingsFragment"
+        android:name="com.example.practica3.SettingsFragment"
+        android:label="fragment_settings"
+        tools:layout="@layout/fragment_settings" />
 
 </navigation>

@@ -7,14 +7,32 @@ import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
 import com.example.practica3.databinding.ActivityMainBinding
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking // <-- AÑADE ESTA IMPORTACIÓN
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var navController: NavController
+    private lateinit var settingsManager: SettingsManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Obtenemos el manager ANTES de super.onCreate
+        settingsManager = SettingsManager(this)
+
+        // --- ESTE ES EL CAMBIO CLAVE ---
+        // Leemos el tema de forma SÍNCRONA (bloqueando el hilo principal)
+        // Esto es necesario para que setTheme() se llame ANTES de super.onCreate()
+        val theme = runBlocking {
+            settingsManager.themeFlow.first()
+        }
+        applyTheme(theme)
+        // --- FIN DEL CAMBIO ---
+
+        // AHORA llamamos a super.onCreate() en el hilo principal
         super.onCreate(savedInstanceState)
+
+        // Y continuamos con el resto de la inicialización de la UI
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -31,10 +49,17 @@ class MainActivity : AppCompatActivity() {
         setupActionBarWithNavController(navController, appBarConfiguration)
     }
 
-    // Esta función maneja el clic en la flecha "atrás"
+    // Función para aplicar el tema correcto (se queda igual)
+    private fun applyTheme(theme: String) {
+        if (theme == SettingsManager.THEME_AZUL) {
+            setTheme(R.style.Theme_GestorDeArchivos_Azul)
+        } else {
+            setTheme(R.style.Theme_GestorDeArchivos_Guinda)
+        }
+    }
+
+    // Esta función maneja el clic en la flecha "atrás" (se queda igual)
     override fun onSupportNavigateUp(): Boolean {
-        // Si el NavController puede navegar hacia arriba, lo hace.
-        // Si no, activamos la lógica del OnBackPressedDispatcher (nuestro callback).
         return navController.navigateUp() || run {
             onBackPressedDispatcher.onBackPressed()
             true

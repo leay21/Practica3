@@ -23,6 +23,12 @@ import androidx.core.content.FileProvider
 import androidx.navigation.fragment.findNavController
 import androidx.fragment.app.setFragmentResultListener
 import androidx.constraintlayout.widget.ConstraintSet
+import android.view.Menu
+import android.view.MenuInflater
+import android.view.MenuItem
+import androidx.core.view.MenuHost
+import androidx.core.view.MenuProvider
+import androidx.lifecycle.Lifecycle
 
 class FileExplorerFragment : Fragment() {
 
@@ -60,6 +66,7 @@ class FileExplorerFragment : Fragment() {
         observeViewModel()
         setupBackButtonHandler()
         setupResultListener()
+        setupMenu()
 
         // Si es la primera vez que entramos, iniciamos el proceso de carga
         if (viewModel.currentPath.value == null) {
@@ -74,6 +81,26 @@ class FileExplorerFragment : Fragment() {
         binding.btnCancelPaste.setOnClickListener {
             viewModel.clearClipboard()
         }
+    }
+    private fun setupMenu() {
+        val menuHost: MenuHost = requireActivity()
+        menuHost.addMenuProvider(object : MenuProvider {
+            override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
+                // Inflamos nuestro menú
+                menuInflater.inflate(R.menu.main_menu, menu)
+            }
+
+            override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
+                // Manejamos el clic en el ícono de configuración
+                return when (menuItem.itemId) {
+                    R.id.action_settings -> {
+                        findNavController().navigate(R.id.action_fileExplorerFragment_to_settingsFragment)
+                        true
+                    }
+                    else -> false
+                }
+            }
+        }, viewLifecycleOwner, Lifecycle.State.RESUMED)
     }
     private fun setupResultListener() {
         // Nos ponemos a escuchar los resultados del BottomSheet
