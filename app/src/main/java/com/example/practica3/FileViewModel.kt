@@ -39,6 +39,38 @@ class FileViewModel(application: Application) : AndroidViewModel(application) {
 
     val allFavorites: Flow<List<FavoriteFile>> = favoriteDao.getAllFavorites()
     val recentFiles: Flow<List<RecentFile>> = recentFileDao.getRecentFiles()
+    private val _searchResults = MutableLiveData<List<File>>()
+    val searchResults: LiveData<List<File>> = _searchResults // Resultados de la búsqueda
+
+    private val _isSearchActive = MutableLiveData<Boolean>(false)
+    val isSearchActive: LiveData<Boolean> = _isSearchActive // Indica si estamos buscando
+
+    fun setSearchActive(isActive: Boolean) {
+        _isSearchActive.value = isActive
+        if (!isActive) {
+            // Si desactivamos la búsqueda, limpiamos los resultados
+            _searchResults.value = emptyList()
+        }
+    }
+
+    // Busca archivos/carpetas en el directorio actual (no recursivo por ahora)
+    fun searchFiles(query: String) {
+        if (!_isSearchActive.value!!) return // No buscar si no está activo
+
+        val currentFiles = _files.value ?: emptyList() // Busca en la lista actual
+
+        viewModelScope.launch(Dispatchers.Default) { // Usamos Default para filtrar
+            val results = if (query.isBlank()) {
+                emptyList() // Si la búsqueda está vacía, no mostramos nada
+            } else {
+                currentFiles.filter { file ->
+                    file.name.contains(query, ignoreCase = true)
+                    // Podrías añadir filtros por tipo o fecha aquí
+                }
+            }
+            _searchResults.postValue(results) // Actualiza los resultados
+        }
+    }
 
     // Añade un archivo al historial
     fun addRecentFile(file: File) {

@@ -34,8 +34,10 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import androidx.appcompat.widget.SearchView
 
 class FileExplorerFragment : Fragment() {
+    private var searchView: SearchView? = null
     private lateinit var breadcrumbAdapter: BreadcrumbAdapter
     private var _binding: FragmentFileExplorerBinding? = null
     private val binding get() = _binding!!
@@ -105,7 +107,42 @@ class FileExplorerFragment : Fragment() {
         menuHost.addMenuProvider(object : MenuProvider {
             override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
                 menuInflater.inflate(R.menu.main_menu, menu)
+                // Configura el SearchView
+                val searchItem = menu.findItem(R.id.action_search)
+                searchView = searchItem.actionView as? SearchView
 
+                searchView?.queryHint = "Buscar archivos..."
+                searchView?.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+                    // Se llama cuando el usuario presiona Enter (o el botón de buscar)
+                    override fun onQueryTextSubmit(query: String?): Boolean {
+                        query?.let { viewModel.searchFiles(it) }
+                        searchView?.clearFocus() // Oculta el teclado
+                        return true
+                    }
+
+                    // Se llama cada vez que el texto cambia
+                    override fun onQueryTextChange(newText: String?): Boolean {
+                        newText?.let { viewModel.searchFiles(it) }
+                        return true
+                    }
+                })
+                // Detecta cuándo se expande/contrae el SearchView
+                searchItem.setOnActionExpandListener(object : MenuItem.OnActionExpandListener {
+                    override fun onMenuItemActionExpand(item: MenuItem): Boolean {
+                        viewModel.setSearchActive(true) // Activa el modo búsqueda
+                        setOtherMenuItemsVisible(menu, item, false) // Oculta otros iconos
+                        return true // Permite la expansión
+                    }
+
+                    override fun onMenuItemActionCollapse(item: MenuItem): Boolean {
+                        viewModel.setSearchActive(false) // Desactiva el modo búsqueda
+                        //setOtherMenuItemsVisible(menu, item, true) // Muestra otros iconos
+                        requireActivity().invalidateMenu()
+                        // Limpia el texto de búsqueda al cerrar
+                        searchView?.setQuery("", false)
+                        return true // Permite el colapso
+                    }
+                })
                 // Leemos el modo de vista actual para poner el icono correcto
                 val viewModeItem = menu.findItem(R.id.action_toggle_view)
                 lifecycleScope.launch {
@@ -130,6 +167,14 @@ class FileExplorerFragment : Fragment() {
                         true
                     }
                     else -> false
+                }
+            }
+            private fun setOtherMenuItemsVisible(menu: Menu, ignoreItem: MenuItem, visible: Boolean) {
+                for (i in 0 until menu.size()) {
+                    val item = menu.getItem(i)
+                    if (item != ignoreItem) {
+                        item.isVisible = visible
+                    }
                 }
             }
         }, viewLifecycleOwner, Lifecycle.State.RESUMED)
@@ -220,6 +265,29 @@ class FileExplorerFragment : Fragment() {
                 updateConstraints(isPasting = true)
             }
         }
+
+        viewModel.searchResults.observe(viewLifecycleOwner) { results ->
+            // Si estamos en modo búsqueda, mostramos los resultados
+            if (viewModel.isSearchActive.value == true) {
+                adapter.submitList(results)
+                binding.textEmpty.isVisible = results.isEmpty()
+                binding.textEmpty.text = "No se encontraron resultados" // Cambia el texto
+            }
+        }
+
+        viewModel.isSearchActive.observe(viewLifecycleOwner) { isActive ->
+            // Si salimos del modo búsqueda, volvemos a mostrar la lista normal
+            if (!isActive) {
+                adapter.submitList(viewModel.files.value ?: emptyList())
+                binding.textEmpty.isVisible = (viewModel.files.value ?: emptyList()).isEmpty()
+                binding.textEmpty.text = "Carpeta Vacía" // Restaura el texto
+            }
+            // Oculta/muestra elementos cuando buscamos
+            binding.fabAddFolder.isVisible = !isActive
+            binding.recyclerBreadcrumbs.isVisible = !isActive
+            binding.pasteBar.isVisible = !isActive && viewModel.clipboard.value != null // Oculta pegar al buscar
+        }
+        // --- FIN DEL OBSERVADOR AÑADIDO ---
     }
     // Esta función ajusta las restricciones del RecyclerView y el FAB
     // para que se coloquen encima de la barra de pegar cuando aparece.
