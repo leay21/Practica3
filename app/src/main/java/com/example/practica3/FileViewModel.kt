@@ -13,6 +13,12 @@ import android.app.Application // <-- AÑADE ESTE
 import androidx.lifecycle.AndroidViewModel // <-- CAMBIA ViewModel por AndroidViewModel
 import kotlinx.coroutines.flow.Flow // <-- AÑADE SI NO ESTÁ
 
+// --- NUEVAS IMPORTACIONES REQUERIDAS ---
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+// --- FIN DE NUEVAS IMPORTACIONES ---
+
 enum class ClipboardOperation {
     COPY, MOVE
 }
@@ -53,24 +59,51 @@ class FileViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Busca archivos/carpetas en el directorio actual (no recursivo por ahora)
+    // --- INICIO DE LA FUNCIÓN 'searchFiles' MODIFICADA ---
+    /**
+     * Busca archivos/carpetas en el directorio actual.
+     * La consulta se compara con el nombre, la extensión (tipo) y la fecha de modificación.
+     */
     fun searchFiles(query: String) {
-        if (!_isSearchActive.value!!) return // No buscar si no está activo
+        if (_isSearchActive.value != true) return // No buscar si no está activo
 
         val currentFiles = _files.value ?: emptyList() // Busca en la lista actual
 
         viewModelScope.launch(Dispatchers.Default) { // Usamos Default para filtrar
-            val results = if (query.isBlank()) {
-                emptyList() // Si la búsqueda está vacía, no mostramos nada
-            } else {
-                currentFiles.filter { file ->
-                    file.name.contains(query, ignoreCase = true)
-                    // Podrías añadir filtros por tipo o fecha aquí
+
+            // Si la consulta está vacía, posteamos una lista vacía y terminamos
+            if (query.isBlank()) {
+                _searchResults.postValue(emptyList())
+                return@launch
+            }
+
+            // Creamos el formateador de fecha una sola vez para eficiencia
+            // Puedes ajustar el formato si prefieres (ej. "dd/MM/yyyy")
+            val sdf = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+
+            val results = currentFiles.filter { file ->
+                // 1. Comprobar nombre
+                val matchesName = file.name.contains(query, ignoreCase = true)
+
+                // 2. Comprobar tipo (extensión)
+                // 'extension' en un directorio es "", por lo que esto es seguro
+                val matchesType = file.extension.contains(query, ignoreCase = true)
+
+                // 3. Comprobar fecha
+                val formattedDate = try {
+                    sdf.format(Date(file.lastModified()))
+                } catch (e: Exception) {
+                    "" // Manejar error
                 }
+                val matchesDate = formattedDate.contains(query, ignoreCase = true)
+
+                // Devolver true si coincide CUALQUIERA
+                matchesName || matchesType || matchesDate
             }
             _searchResults.postValue(results) // Actualiza los resultados
         }
     }
+    // --- FIN DE LA FUNCIÓN MODIFICADA ---
 
     // Añade un archivo al historial
     fun addRecentFile(file: File) {
@@ -114,25 +147,30 @@ class FileViewModel(application: Application) : AndroidViewModel(application) {
                         null
                     }
                 }
+
+                // --- ¡ESTA COMPROBACIÓN ES LA CLAVE! ---
                 if (fileList != null) {
-                    _files.value = fileList
+                    // Si fileList NO es nulo, Kotlin sabe que es seguro asignarlo
+                    _files.value = fileList  // <-- Esta línea ahora es segura
                     _currentPath.value = path
 
-                    // Genera la lista de breadcrumbs
+                    // ... (resto del código de breadcrumbs) ...
                     val parts = mutableListOf<File>()
                     var currentFile = File(path)
                     val rootPath = Environment.getExternalStorageDirectory().absolutePath
 
-                    // Sube por el árbol de directorios hasta llegar a la raíz
                     while (currentFile.absolutePath != rootPath && currentFile.parentFile != null) {
                         parts.add(currentFile)
                         currentFile = currentFile.parentFile
                     }
-                    parts.add(File(rootPath)) // Añade la raíz ("Almacenamiento")
-                    _breadcrumbParts.value = parts.reversed() // Le damos la vuelta para el orden correcto
+                    parts.add(File(rootPath))
+                    _breadcrumbParts.value = parts.reversed()
                 } else {
+                    // Si fileList ES nulo, se informa el error
                     _error.value = "No se pudo acceder a la ruta."
                 }
+                // --- FIN DE LA COMPROBACIÓN ---
+
             } catch (e: Exception) {
                 _error.value = "Error: ${e.message}"
             }
